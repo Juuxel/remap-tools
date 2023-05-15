@@ -1,0 +1,10 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'com.gradle.plugin-publish'
+}
+
+dependencies {
+    implementation libs.tinyremapper
+    implementation libs.mappingio
+    compileOnly libs.jetbrains.annotations
+}

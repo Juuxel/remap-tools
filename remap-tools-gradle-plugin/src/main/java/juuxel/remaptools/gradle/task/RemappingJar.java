@@ -1,0 +1,110 @@
+package juuxel.remaptools.gradle.task;
+
+import groovy.lang.Closure;
+import groovy.lang.DelegatesTo;
+import juuxel.remaptools.gradle.RemapConfiguration;
+import juuxel.remaptools.gradle.internal.RemapConfigurationHelper;
+import net.fabricmc.mappingio.MappingWriter;
+import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
+import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.OutputConsumerPath;
+import net.fabricmc.tinyremapper.TinyRemapper;
+import net.fabricmc.tinyremapper.TinyUtils;
+import org.gradle.api.Action;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.bundling.Jar;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+public class RemappingJar extends Jar {
+    private final ConfigurableFileCollection remapClasspath = getProject().getObjects().fileCollection();
+    private final Property<RemapConfiguration> remapConfiguration = getProject().getObjects().property(RemapConfiguration.class);
+
+    @Classpath
+    public ConfigurableFileCollection getRemapClasspath() {
+        return remapClasspath;
+    }
+
+    @Input
+    public Property<RemapConfiguration> getRemapConfiguration() {
+        return remapConfiguration;
+    }
+
+    public void remapConfiguration(Action<? super RemapConfiguration> action) {
+        remapConfiguration.set(getProject().provider(() -> {
+            RemapConfiguration rc = getProject().getObjects().newInstance(RemapConfiguration.class);
+            action.execute(rc);
+            return rc;
+        }));
+    }
+
+    public void remapConfiguration(@DelegatesTo(value = RemapConfiguration.class, strategy = Closure.DELEGATE_FIRST) Closure<?> action) {
+        remapConfiguration(rc -> {
+            action.setDelegate(rc);
+            action.call(rc);
+        });
+    }
+
+    @Override
+    protected void copy() {
+        super.copy();
+
+        try {
+            remap();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private void remap() throws IOException {
+        Path input = Files.createTempFile(getTemporaryDir().toPath(), "input", ".jar");
+        Path archive = getArchiveFile().get().getAsFile().toPath();
+        Files.copy(input, archive, StandardCopyOption.REPLACE_EXISTING);
+        Files.delete(archive);
+
+        getRemapConfiguration().finalizeValue();
+        RemapConfiguration rc = getRemapConfiguration().get();
+        var fromM = rc.getSourceNamespace().get();
+        var toM = rc.getTargetNamespace().get();
+        MemoryMappingTree mappingTree = RemapConfigurationHelper.readMappings(rc);
+        Path mappings = Files.createTempFile(getTemporaryDir().toPath(), "mappings", ".tiny");
+        try (var writer = MappingWriter.create(mappings, MappingFormat.TINY_2)) {
+            mappingTree.accept(new MappingDstNsReorder(writer, toM));
+        }
+
+        try {
+            TinyRemapper remapper = TinyRemapper.newRemapper()
+                .withMappings(TinyUtils.createTinyMappingProvider(mappings, fromM, toM))
+                .build();
+
+            Path[] classpath = getRemapClasspath()
+                .getFiles()
+                .stream()
+                .map(File::toPath)
+                .toArray(Path[]::new);
+
+            try (var outputConsumer = new OutputConsumerPath.Builder(archive).build()) {
+                outputConsumer.addNonClassFiles(input);
+
+                remapper.readInputs(input);
+                remapper.readClassPath(classpath);
+
+                remapper.apply(outputConsumer);
+            } finally {
+                remapper.finish();
+            }
+        } finally {
+            Files.deleteIfExists(mappings);
+            Files.deleteIfExists(input);
+        }
+    }
+}

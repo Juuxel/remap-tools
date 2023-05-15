@@ -1,0 +1,22 @@
+plugins {
+    id 'maven-publish'
+}
+
+dependencies {
+    implementation project(':remap-tools')
+    implementation libs.mixin
+    implementation libs.guava
+    compileOnly libs.jetbrains.annotations
+
+    // Mixin's dependencies
+    compileOnly libs.bundles.mixin.dependencies
+    compileOnly libs.bundles.asm
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}

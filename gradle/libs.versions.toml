@@ -1,0 +1,30 @@
+[versions]
+asm = "9.4"
+mappingio = "0.4.2"
+mixin = "0.8.5"
+gson = "2.10.1"
+jetbrains-annotations = "24.0.1"
+securejarhandler = "2.1.6"
+modlauncher = "10.0.8"
+log4j = "2.20.0"
+guava = "31.1-jre"
+tinyremapper = "0.8.6"
+
+[libraries]
+asm-core = { module = "org.ow2.asm:asm", version.ref = "asm" }
+asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
+asm-commons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
+asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
+mappingio = { module = "net.fabricmc:mapping-io", version.ref = "mappingio" }
+mixin = { module = "org.spongepowered:mixin", version.ref = "mixin" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+securejarhandler = { module = "cpw.mods:securejarhandler", version.ref = "securejarhandler" }
+modlauncher = { module = "cpw.mods:modlauncher", version.ref = "modlauncher" }
+log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+tinyremapper = { module = "net.fabricmc:tiny-remapper", version.ref = "tinyremapper" }
+
+[bundles]
+asm = ["asm-core", "asm-tree", "asm-commons", "asm-util"]
+mixin-dependencies = ["securejarhandler", "modlauncher", "log4j-api", "guava"]

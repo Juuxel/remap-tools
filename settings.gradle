@@ -1,0 +1,5 @@
+rootProject.name = 'remap-tools'
+
+include ':remap-tools',
+    ':remap-tools-gradle-plugin',
+    ':remap-tools-mixin-obfuscator'
