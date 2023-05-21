@@ -89,7 +89,7 @@ public class RemappingJar extends Jar {
     private void remap() throws IOException {
         Path input = Files.createTempFile(getTemporaryDir().toPath(), "input", ".jar");
         Path archive = getArchiveFile().get().getAsFile().toPath();
-        Files.copy(input, archive, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(archive, input, StandardCopyOption.REPLACE_EXISTING);
         Files.delete(archive);
 
         mappings.finalizeValue();
