@@ -13,6 +13,7 @@ import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.FileSystemReference;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
 import net.fabricmc.tinyremapper.TinyUtils;
@@ -30,13 +31,10 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.net.URI;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -193,7 +191,7 @@ public class RemappingJar extends Jar {
             return;
         }
 
-        try (var fs = FileSystems.newFileSystem(URI.create("jar:" + archive.toUri()), Map.of("create", false))) {
+        try (var fs = FileSystemReference.openJar(archive, false)) {
             var missing = new HashSet<String>();
             for (var refmap : refmaps) {
                 var refmapPath = fs.getPath(refmap);
