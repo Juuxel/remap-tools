@@ -32,6 +32,7 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
@@ -193,12 +194,10 @@ public class RemappingJar extends Jar {
         }
 
         try (var fs = FileSystemReference.openJar(archive, false)) {
-            var missing = new HashSet<String>();
             for (var refmap : refmaps) {
                 var refmapPath = fs.getPath(refmap);
                 if (Files.notExists(refmapPath)) {
-                    missing.add(refmap);
-                    continue;
+                    throw new NoSuchFileException(refmap);
                 }
 
                 Refmap refmapObj;
