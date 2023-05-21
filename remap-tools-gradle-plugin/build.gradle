@@ -10,6 +10,7 @@ sourceSets {
 }
 
 dependencies {
+    implementation project(':remap-tools')
     implementation libs.tinyremapper
     api libs.mappingio
     compileOnly libs.jetbrains.annotations

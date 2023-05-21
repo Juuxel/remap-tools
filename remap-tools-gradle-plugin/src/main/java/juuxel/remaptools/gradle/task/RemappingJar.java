@@ -7,6 +7,7 @@
 package juuxel.remaptools.gradle.task;
 
 import juuxel.remaptools.gradle.MappingConfiguration;
+import juuxel.remaptools.refmap.Refmap;
 import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
@@ -17,17 +18,26 @@ import net.fabricmc.tinyremapper.TinyRemapper;
 import net.fabricmc.tinyremapper.TinyUtils;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.bundling.Jar;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.net.URI;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Creates a jar that is then remapped between mapping set namespaces.
@@ -37,6 +47,9 @@ public class RemappingJar extends Jar {
     private final Property<MappingConfiguration> mappings = getProject().getObjects().property(MappingConfiguration.class);
     private final Property<String> sourceNamespace = getProject().getObjects().property(String.class);
     private final Property<String> targetNamespace = getProject().getObjects().property(String.class);
+    private final SetProperty<String> refmaps = getProject().getObjects().setProperty(String.class);
+    private final Property<String> refmapEnvironment = getProject().getObjects().property(String.class);
+    private final Property<Boolean> remapRefmapMainMappings = getProject().getObjects().property(Boolean.class).convention(true);
 
     public RemappingJar() {
         getInputs().property("mappings", getMappings().map(MappingConfiguration::asTaskInput));
@@ -73,6 +86,34 @@ public class RemappingJar extends Jar {
     @Input
     public Property<String> getTargetNamespace() {
         return targetNamespace;
+    }
+
+    /**
+     * {@return a set of all Mixin refmap file paths to remap}
+     */
+    @Input
+    public SetProperty<String> getRefmaps() {
+        return refmaps;
+    }
+
+    /**
+     * {@return the Mixin refmap environment to remap}
+     * The environment is the key in the {@code data} map.
+     */
+    @Input
+    @Optional
+    public Property<String> getRefmapEnvironment() {
+        return refmapEnvironment;
+    }
+
+    /**
+     * {@return whether the {@code mappings} section in Mixin refmaps should be remapped}
+     * Defaults to {@code true}.
+     */
+    @Input
+    @Optional
+    public Property<Boolean> getRemapRefmapMainMappings() {
+        return remapRefmapMainMappings;
     }
 
     @Override
@@ -131,9 +172,54 @@ public class RemappingJar extends Jar {
             } finally {
                 remapper.finish();
             }
+
+            getRefmaps().finalizeValue();
+            getRefmapEnvironment().finalizeValue();
+            getRemapRefmapMainMappings().finalizeValue();
+            var refmaps = getRefmaps().get();
+            if (!refmaps.isEmpty()) remapRefmaps(archive, refmaps, remapper);
         } finally {
             Files.deleteIfExists(mappings);
             Files.deleteIfExists(input);
+        }
+    }
+
+    private void remapRefmaps(Path archive, Set<String> refmaps, TinyRemapper remapper) throws IOException {
+        var environment = getRefmapEnvironment().getOrNull();
+        var remapMainMappings = getRemapRefmapMainMappings().getOrElse(false);
+
+        if (environment == null && !remapMainMappings) {
+            // Remapping not enabled.
+            return;
+        }
+
+        try (var fs = FileSystems.newFileSystem(URI.create("jar:" + archive.toUri()), Map.of("create", false))) {
+            var missing = new HashSet<String>();
+            for (var refmap : refmaps) {
+                var refmapPath = fs.getPath(refmap);
+                if (Files.notExists(refmapPath)) {
+                    missing.add(refmap);
+                    continue;
+                }
+
+                Refmap refmapObj;
+
+                try (Reader reader = Files.newBufferedReader(refmapPath)) {
+                    refmapObj = Refmap.read(reader);
+                }
+
+                if (environment != null) {
+                    refmapObj = refmapObj.remap(environment, remapper.getEnvironment().getRemapper());
+                }
+
+                if (remapMainMappings) {
+                    refmapObj = refmapObj.remapDefault(remapper.getEnvironment().getRemapper());
+                }
+
+                try (Writer writer = Files.newBufferedWriter(refmapPath)) {
+                    refmapObj.write(writer);
+                }
+            }
         }
     }
 }
