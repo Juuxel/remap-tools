@@ -30,3 +30,17 @@ javadoc {
     classpath = sourceSets.main.compileClasspath + sourceSets.loom.compileClasspath
     source sourceSets.loom.allJava
 }
+
+gradlePlugin {
+    plugins {
+        core {
+            id = 'io.github.juuxel.remap-tools'
+            implementationClass = 'juuxel.remaptools.gradle.RemapToolsPlugin'
+        }
+
+        loom {
+            id = 'io.github.juuxel.remap-tools.loom'
+            implementationClass = 'juuxel.remaptools.gradle.loom.RemapToolsLoomPlugin'
+        }
+    }
+}
