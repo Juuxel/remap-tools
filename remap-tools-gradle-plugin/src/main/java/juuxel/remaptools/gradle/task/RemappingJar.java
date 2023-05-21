@@ -48,7 +48,7 @@ public class RemappingJar extends Jar {
     private final Property<String> sourceNamespace = getProject().getObjects().property(String.class);
     private final Property<String> targetNamespace = getProject().getObjects().property(String.class);
     private final SetProperty<String> refmaps = getProject().getObjects().setProperty(String.class);
-    private final Property<String> refmapEnvironment = getProject().getObjects().property(String.class);
+    private final SetProperty<String> refmapEnvironments = getProject().getObjects().setProperty(String.class);
     private final Property<Boolean> remapRefmapMainMappings = getProject().getObjects().property(Boolean.class).convention(true);
 
     public RemappingJar() {
@@ -97,13 +97,13 @@ public class RemappingJar extends Jar {
     }
 
     /**
-     * {@return the Mixin refmap environment to remap}
-     * The environment is the key in the {@code data} map.
+     * {@return the Mixin refmap environments to remap}
+     * An environment is a key in the {@code data} map.
      */
     @Input
     @Optional
-    public Property<String> getRefmapEnvironment() {
-        return refmapEnvironment;
+    public SetProperty<String> getRefmapEnvironments() {
+        return refmapEnvironments;
     }
 
     /**
@@ -174,7 +174,7 @@ public class RemappingJar extends Jar {
             }
 
             getRefmaps().finalizeValue();
-            getRefmapEnvironment().finalizeValue();
+            getRefmapEnvironments().finalizeValue();
             getRemapRefmapMainMappings().finalizeValue();
             var refmaps = getRefmaps().get();
             if (!refmaps.isEmpty()) remapRefmaps(archive, refmaps, remapper);
@@ -185,10 +185,10 @@ public class RemappingJar extends Jar {
     }
 
     private void remapRefmaps(Path archive, Set<String> refmaps, TinyRemapper remapper) throws IOException {
-        var environment = getRefmapEnvironment().getOrNull();
+        var environments = getRefmapEnvironments().get();
         var remapMainMappings = getRemapRefmapMainMappings().getOrElse(false);
 
-        if (environment == null && !remapMainMappings) {
+        if (environments.isEmpty() && !remapMainMappings) {
             // Remapping not enabled.
             return;
         }
@@ -208,7 +208,7 @@ public class RemappingJar extends Jar {
                     refmapObj = Refmap.read(reader);
                 }
 
-                if (environment != null) {
+                for (var environment : environments) {
                     refmapObj = refmapObj.remap(environment, remapper.getEnvironment().getRemapper());
                 }
 
