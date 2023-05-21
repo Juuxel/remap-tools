@@ -3,9 +3,9 @@ package juuxel.remaptools.gradle.task;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import juuxel.remaptools.gradle.RemapConfiguration;
-import juuxel.remaptools.gradle.internal.RemapConfigurationHelper;
 import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
+import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
@@ -25,20 +25,33 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * Creates a jar that is then remapped between mapping set namespaces.
+ */
 public class RemappingJar extends Jar {
     private final ConfigurableFileCollection remapClasspath = getProject().getObjects().fileCollection();
     private final Property<RemapConfiguration> remapConfiguration = getProject().getObjects().property(RemapConfiguration.class);
 
+    /**
+     * {@return the classpath of the classes to be remapped}
+     */
     @Classpath
     public ConfigurableFileCollection getRemapClasspath() {
         return remapClasspath;
     }
 
+    /**
+     * {@return the remap configuration for remapping}
+     */
     @Input
     public Property<RemapConfiguration> getRemapConfiguration() {
         return remapConfiguration;
     }
 
+    /**
+     * Creates, configures and sets the {@linkplain #getRemapConfiguration() remap configuration}.
+     * @param action the configuration action
+     */
     public void remapConfiguration(Action<? super RemapConfiguration> action) {
         remapConfiguration.set(getProject().provider(() -> {
             RemapConfiguration rc = getProject().getObjects().newInstance(RemapConfiguration.class);
@@ -47,6 +60,10 @@ public class RemappingJar extends Jar {
         }));
     }
 
+    /**
+     * Creates, configures and sets the {@linkplain #getRemapConfiguration() remap configuration}.
+     * @param action the configuration action
+     */
     public void remapConfiguration(@DelegatesTo(value = RemapConfiguration.class, strategy = Closure.DELEGATE_FIRST) Closure<?> action) {
         remapConfiguration(rc -> {
             action.setDelegate(rc);
@@ -75,7 +92,14 @@ public class RemappingJar extends Jar {
         RemapConfiguration rc = getRemapConfiguration().get();
         var fromM = rc.getSourceNamespace().get();
         var toM = rc.getTargetNamespace().get();
-        MemoryMappingTree mappingTree = RemapConfigurationHelper.readMappings(rc);
+        MemoryMappingTree mappingTree = rc.getMappings().get().readMappings();
+
+        if (!fromM.equals(mappingTree.getSrcNamespace())) {
+            MemoryMappingTree newTree = new MemoryMappingTree();
+            mappingTree.accept(new MappingSourceNsSwitch(newTree, fromM));
+            mappingTree = newTree;
+        }
+
         Path mappings = Files.createTempFile(getTemporaryDir().toPath(), "mappings", ".tiny");
         try (var writer = MappingWriter.create(mappings, MappingFormat.TINY_2)) {
             mappingTree.accept(new MappingDstNsReorder(writer, toM));

@@ -1,7 +1,7 @@
 package juuxel.remaptools.gradle.internal;
 
-import juuxel.remaptools.gradle.MappingFileConfiguration;
-import juuxel.remaptools.gradle.RemapConfiguration;
+import juuxel.remaptools.gradle.FileMappingConfiguration;
+import juuxel.remaptools.gradle.MappingFile;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingUtil;
 import net.fabricmc.mappingio.MappingVisitor;
@@ -9,20 +9,37 @@ import net.fabricmc.mappingio.adapter.MappingNsRenamer;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import org.gradle.api.Action;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.resources.TextResource;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.Path;
 import java.util.Map;
 
-public final class RemapConfigurationHelper {
-    public static MemoryMappingTree readMappings(RemapConfiguration configuration) throws IOException {
+public abstract class FileMappingConfigurationInternal implements FileMappingConfiguration {
+    @Inject
+    protected abstract ObjectFactory getObjectFactory();
+    @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
+    public void mappingFile(Action<? super MappingFile> action) {
+        getMappingFiles().add(getProviderFactory().provider(() -> {
+            MappingFile configuration = getObjectFactory().newInstance(MappingFile.class);
+            action.execute(configuration);
+            return configuration;
+        }));
+    }
+
+    @Override
+    public MemoryMappingTree readMappings() throws IOException {
         MemoryMappingTree tree = new MemoryMappingTree();
         String currentNamespace = null;
 
-        for (MappingFileConfiguration mappingConfiguration : configuration.getMappingFiles().get()) {
-            var mergeNamespace = mappingConfiguration.getMergeNamespace().get();
+        for (MappingFile mappingFile : getMappingFiles().get()) {
+            var mergeNamespace = mappingFile.getMergeNamespace().get();
             if (currentNamespace == null || !currentNamespace.equals(mergeNamespace)) {
                 currentNamespace = mergeNamespace;
 
@@ -31,21 +48,14 @@ public final class RemapConfigurationHelper {
                 tree = newTree;
             }
 
-            readIntoVisitor(tree, mappingConfiguration);
-        }
-
-        var sourceNamespace = configuration.getSourceNamespace().get();
-        if (!sourceNamespace.equals(currentNamespace)) {
-            MemoryMappingTree newTree = new MemoryMappingTree();
-            tree.accept(new MappingSourceNsSwitch(newTree, sourceNamespace));
-            tree = newTree;
+            readIntoVisitor(tree, mappingFile);
         }
 
         return tree;
     }
 
-    public static void readIntoVisitor(MappingVisitor visitor, MappingFileConfiguration configuration) throws IOException {
-        TextResource mappings = configuration.getMappings().get();
+    private static void readIntoVisitor(MappingVisitor visitor, MappingFile mappingFile) throws IOException {
+        TextResource mappings = mappingFile.getMappings().get();
         MappingFormat format;
 
         try (Reader reader = mappings.asReader()) {
@@ -56,8 +66,8 @@ public final class RemapConfigurationHelper {
 
         if (!format.hasNamespaces) {
             realVisitor = new MappingNsRenamer(realVisitor, Map.of(
-                MappingUtil.NS_SOURCE_FALLBACK, configuration.getDefaultSourceNamespace().get(),
-                MappingUtil.NS_TARGET_FALLBACK, configuration.getDefaultTargetNamespace().get()
+                MappingUtil.NS_SOURCE_FALLBACK, mappingFile.getDefaultSourceNamespace().get(),
+                MappingUtil.NS_TARGET_FALLBACK, mappingFile.getDefaultTargetNamespace().get()
             ));
         }
 

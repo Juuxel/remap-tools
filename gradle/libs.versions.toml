@@ -9,6 +9,7 @@ modlauncher = "10.0.8"
 log4j = "2.20.0"
 guava = "31.1-jre"
 tinyremapper = "0.8.6"
+loom = "1.2.7"
 
 [libraries]
 asm-core = { module = "org.ow2.asm:asm", version.ref = "asm" }
@@ -24,6 +25,7 @@ modlauncher = { module = "cpw.mods:modlauncher", version.ref = "modlauncher" }
 log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 tinyremapper = { module = "net.fabricmc:tiny-remapper", version.ref = "tinyremapper" }
+loom = { module = "net.fabricmc:fabric-loom", version.ref = "loom" }
 
 [bundles]
 asm = ["asm-core", "asm-tree", "asm-commons", "asm-util"]

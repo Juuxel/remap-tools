@@ -3,8 +3,30 @@ plugins {
     id 'com.gradle.plugin-publish'
 }
 
+sourceSets {
+    loom {
+        compileClasspath += main.compileClasspath
+    }
+}
+
 dependencies {
     implementation libs.tinyremapper
-    implementation libs.mappingio
+    api libs.mappingio
     compileOnly libs.jetbrains.annotations
+
+    loomImplementation sourceSets.main.output
+    loomImplementation libs.loom
+}
+
+jar {
+    from sourceSets.loom.output
+}
+
+sourcesJar {
+    from sourceSets.loom.allSource
+}
+
+javadoc {
+    classpath = sourceSets.main.compileClasspath + sourceSets.loom.compileClasspath
+    source sourceSets.loom.allJava
 }
