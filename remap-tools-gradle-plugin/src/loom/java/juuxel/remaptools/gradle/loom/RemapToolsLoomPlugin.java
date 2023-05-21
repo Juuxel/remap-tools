@@ -6,6 +6,7 @@
 
 package juuxel.remaptools.gradle.loom;
 
+import juuxel.remaptools.gradle.RemapToolsPlugin;
 import juuxel.remaptools.gradle.loom.internal.RemapToolsLoomExtensionInternal;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -16,6 +17,7 @@ import org.gradle.api.Project;
 public final class RemapToolsLoomPlugin implements Plugin<Project> {
     @Override
     public void apply(Project target) {
+        target.getPlugins().apply(RemapToolsPlugin.class);
         target.getExtensions().create(RemapToolsLoomExtension.class, RemapToolsLoomExtension.NAME, RemapToolsLoomExtensionInternal.class);
     }
 }
