@@ -1,5 +1,6 @@
 plugins {
     id 'com.gradle.plugin-publish' version '1.2.0' apply false // TODO: libs.versions.toml
+    id 'net.kyori.indra.licenser.spotless' version '3.1.1' apply false
 }
 
 group =  'io.github.juuxel'
@@ -7,6 +8,7 @@ version = '1.0-SNAPSHOT'
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'net.kyori.indra.licenser.spotless'
 
     group = rootProject.group
     version = rootProject.version
@@ -29,5 +31,10 @@ subprojects {
         options.encoding = "UTF-8"
         options.release = 17
         options.javaModuleVersion = project.version
+    }
+
+    indraSpotlessLicenser {
+        licenseHeaderFile rootProject.file("HEADER.txt")
+        newLine true
     }
 }
