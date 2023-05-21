@@ -81,4 +81,9 @@ public abstract class FileMappingConfigurationInternal implements FileMappingCon
             MappingReader.read(reader, format, realVisitor);
         }
     }
+
+    @Override
+    public Object asTaskInput() {
+        return this;
+    }
 }

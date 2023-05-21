@@ -6,9 +6,7 @@
 
 package juuxel.remaptools.gradle.task;
 
-import groovy.lang.Closure;
-import groovy.lang.DelegatesTo;
-import juuxel.remaptools.gradle.RemapConfiguration;
+import juuxel.remaptools.gradle.MappingConfiguration;
 import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
@@ -17,11 +15,11 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
 import net.fabricmc.tinyremapper.TinyUtils;
-import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.bundling.Jar;
 
 import java.io.File;
@@ -36,7 +34,13 @@ import java.nio.file.StandardCopyOption;
  */
 public class RemappingJar extends Jar {
     private final ConfigurableFileCollection remapClasspath = getProject().getObjects().fileCollection();
-    private final Property<RemapConfiguration> remapConfiguration = getProject().getObjects().property(RemapConfiguration.class);
+    private final Property<MappingConfiguration> mappings = getProject().getObjects().property(MappingConfiguration.class);
+    private final Property<String> sourceNamespace = getProject().getObjects().property(String.class);
+    private final Property<String> targetNamespace = getProject().getObjects().property(String.class);
+
+    public RemappingJar() {
+        getInputs().property("mappings", getMappings().map(MappingConfiguration::asTaskInput));
+    }
 
     /**
      * {@return the classpath of the classes to be remapped}
@@ -47,34 +51,28 @@ public class RemappingJar extends Jar {
     }
 
     /**
-     * {@return the remap configuration for remapping}
+     * {@return the mapping configuration of this remapping task}
+     * It is used to provide a mapping set for remapping.
+     */
+    @Internal
+    public Property<MappingConfiguration> getMappings() {
+        return mappings;
+    }
+
+    /**
+     * {@return the source namespace for remapping}
      */
     @Input
-    public Property<RemapConfiguration> getRemapConfiguration() {
-        return remapConfiguration;
+    public Property<String> getSourceNamespace() {
+        return sourceNamespace;
     }
 
     /**
-     * Creates, configures and sets the {@linkplain #getRemapConfiguration() remap configuration}.
-     * @param action the configuration action
+     * {@return the target namespace for remapping}
      */
-    public void remapConfiguration(Action<? super RemapConfiguration> action) {
-        remapConfiguration.set(getProject().provider(() -> {
-            RemapConfiguration rc = getProject().getObjects().newInstance(RemapConfiguration.class);
-            action.execute(rc);
-            return rc;
-        }));
-    }
-
-    /**
-     * Creates, configures and sets the {@linkplain #getRemapConfiguration() remap configuration}.
-     * @param action the configuration action
-     */
-    public void remapConfiguration(@DelegatesTo(value = RemapConfiguration.class, strategy = Closure.DELEGATE_FIRST) Closure<?> action) {
-        remapConfiguration(rc -> {
-            action.setDelegate(rc);
-            action.call(rc);
-        });
+    @Input
+    public Property<String> getTargetNamespace() {
+        return targetNamespace;
     }
 
     @Override
@@ -94,11 +92,12 @@ public class RemappingJar extends Jar {
         Files.copy(input, archive, StandardCopyOption.REPLACE_EXISTING);
         Files.delete(archive);
 
-        getRemapConfiguration().finalizeValue();
-        RemapConfiguration rc = getRemapConfiguration().get();
-        var fromM = rc.getSourceNamespace().get();
-        var toM = rc.getTargetNamespace().get();
-        MemoryMappingTree mappingTree = rc.getMappings().get().readMappings();
+        mappings.finalizeValue();
+        sourceNamespace.finalizeValue();
+        targetNamespace.finalizeValue();
+        var fromM = sourceNamespace.get();
+        var toM = targetNamespace.get();
+        MemoryMappingTree mappingTree = mappings.get().readMappings();
 
         if (!fromM.equals(mappingTree.getSrcNamespace())) {
             MemoryMappingTree newTree = new MemoryMappingTree();

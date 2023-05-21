@@ -12,9 +12,6 @@ import java.io.IOException;
 
 /**
  * A mapping configuration that can produce a mapping tree.
- *
- * <p>Implementing types should be Gradle managed types or serializable,
- * i.e. usable as task inputs.
  */
 public interface MappingConfiguration {
     /**
@@ -23,4 +20,9 @@ public interface MappingConfiguration {
      * @return the mappings read as a {@link MemoryMappingTree}
      */
     MemoryMappingTree readMappings() throws IOException;
+
+    /**
+     * {@return an object that uniquely represents this mapping configuration as a task input}
+     */
+    Object asTaskInput();
 }
