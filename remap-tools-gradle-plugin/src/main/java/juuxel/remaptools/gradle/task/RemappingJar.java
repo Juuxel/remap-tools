@@ -182,6 +182,7 @@ public class RemappingJar extends Jar {
         }
     }
 
+    // TODO: Doesn't remap references to classpath classes, which makes it useless...
     private void remapRefmaps(Path archive, Set<String> refmaps, TinyRemapper remapper) throws IOException {
         var environments = getRefmapEnvironments().get();
         var remapMainMappings = getRemapRefmapMainMappings().getOrElse(false);
