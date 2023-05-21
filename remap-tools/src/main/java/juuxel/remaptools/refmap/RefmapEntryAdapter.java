@@ -15,8 +15,8 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 final class RefmapEntryAdapter extends TypeAdapter<RefmapEntry> {
-    private static final Pattern FIELD_PATTERN = Pattern.compile("(L[^;];)?(.+):(.+)");
-    private static final Pattern METHOD_PATTERN = Pattern.compile("(L[^;];)?(.+)(\\(.*\\).+)");
+    private static final Pattern FIELD_PATTERN = Pattern.compile("(?:L([^;]+);)?(.+):(.+)");
+    private static final Pattern METHOD_PATTERN = Pattern.compile("(?:L([^;]+);)?(.+)(\\(.*\\).+)");
 
     @Override
     public void write(JsonWriter out, RefmapEntry value) throws IOException {
