@@ -44,14 +44,9 @@ public final class MappingTreeRemapper extends Remapper {
         return id;
     }
 
-    private String getNameOrDefault(MappingTreeView.ElementMappingView element) {
+    private String getNameOrDefault(MappingTreeView.ElementMappingView element, String defaultValue) {
         var targetName = element.getName(to);
-        if (targetName != null) return targetName;
-
-        var originalName = element.getName(from);
-        if (originalName != null) return originalName; // should always happen, but doesn't really hurt to check
-
-        return element.getSrcName();
+        return targetName != null ? targetName : defaultValue;
     }
 
     @Override
@@ -61,20 +56,20 @@ public final class MappingTreeRemapper extends Remapper {
 
     @Override
     public String mapMethodName(String owner, String name, String descriptor) {
-        var ownerMapping = tree.getClass(name, from);
+        var ownerMapping = tree.getClass(owner, from);
         if (ownerMapping == null) return name;
 
         var mapping = ownerMapping.getMethod(name, descriptor, from);
-        return mapping != null ? getNameOrDefault(mapping) : name;
+        return mapping != null ? getNameOrDefault(mapping, name) : name;
     }
 
     @Override
     public String mapFieldName(String owner, String name, String descriptor) {
-        var ownerMapping = tree.getClass(name, from);
+        var ownerMapping = tree.getClass(owner, from);
         if (ownerMapping == null) return name;
 
         var mapping = ownerMapping.getField(name, descriptor, from);
-        return mapping != null ? getNameOrDefault(mapping) : name;
+        return mapping != null ? getNameOrDefault(mapping, name) : name;
     }
 
     @Override
